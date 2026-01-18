@@ -14,5 +14,6 @@ usernames and get live status, last online time, and channel stats.
 
 ## Data source
 
-This dashboard reads live data from the community Twitch API at <https://api.ivr.fi>. It does not
-require your own Twitch Client ID or access token.
+This dashboard reads live data from the community Twitch API at <https://api.ivr.fi> and 30-day
+summary stats from <https://twitchtracker.com/api>. It does not require your own Twitch Client ID or
+access token.

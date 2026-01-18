@@ -59,6 +59,14 @@ function formatNumber(value) {
   return Number(value).toLocaleString();
 }
 
+function formatHours(minutes) {
+  if (minutes === null || minutes === undefined) {
+    return "-";
+  }
+  const hours = Number(minutes) / 60;
+  return `${hours.toFixed(1)}h`;
+}
+
 function parseChannelInput(value) {
   const trimmed = value.trim();
   if (!trimmed) {
@@ -103,6 +111,14 @@ async function fetchUser(login) {
   return payload[0] || null;
 }
 
+async function fetchTrackerSummary(login) {
+  const response = await fetch(`https://twitchtracker.com/api/channels/summary/${login}`);
+  if (!response.ok) {
+    return null;
+  }
+  return response.json();
+}
+
 async function refreshChannels() {
   if (state.channels.length === 0) {
     setStatus("Add at least one channel to start tracking.");
@@ -131,6 +147,19 @@ async function refreshChannels() {
       return;
     }
 
+    const trackerResults = await Promise.all(
+      users.map(async (user) => {
+        try {
+          const summary = await fetchTrackerSummary(user.login);
+          return [user.login, summary];
+        } catch (error) {
+          return [user.login, null];
+        }
+      })
+    );
+
+    const trackerMap = new Map(trackerResults);
+
     elements.cards.innerHTML = users
       .map((user) => {
         const stream = user.stream;
@@ -138,6 +167,7 @@ async function refreshChannels() {
         const statusLabel = isLive ? "Live" : "Offline";
         const badgeClass = isLive ? "badge badge--live" : "badge";
         const lastBroadcast = user.lastBroadcast?.startedAt;
+        const trackerSummary = trackerMap.get(user.login);
 
         const lastOnline = isLive
           ? `Live since ${formatDate(stream.startedAt)}`
@@ -163,6 +193,11 @@ async function refreshChannels() {
             <div class="stats">
               <div><span>Status</span><strong>${lastOnline}</strong></div>
               <div><span>Followers</span><strong>${formatNumber(user.followers)}</strong></div>
+              <div><span>30d avg viewers</span><strong>${formatNumber(trackerSummary?.avg_viewers)}</strong></div>
+              <div><span>30d max viewers</span><strong>${formatNumber(trackerSummary?.max_viewers)}</strong></div>
+              <div><span>30d hours watched</span><strong>${formatNumber(trackerSummary?.hours_watched)}</strong></div>
+              <div><span>30d hours streamed</span><strong>${formatHours(trackerSummary?.minutes_streamed)}</strong></div>
+              <div><span>30d new followers</span><strong>${formatNumber(trackerSummary?.followers)}</strong></div>
               <div><span>Chatters</span><strong>${formatNumber(user.chatterCount)}</strong></div>
               <div><span>Account created</span><strong>${formatDate(user.createdAt)}</strong></div>
               <div><span>Broadcaster type</span><strong>${roleLabel(user.roles)}</strong></div>
