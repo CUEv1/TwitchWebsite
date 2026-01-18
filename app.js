@@ -6,11 +6,15 @@ const elements = {
   clearChannels: document.getElementById("clear-channels"),
   refresh: document.getElementById("refresh"),
   status: document.getElementById("status"),
-  cards: document.getElementById("channels"),
+  cards: document.getElementById("channels-list"),
+  detail: document.getElementById("channel-detail"),
 };
 
 const state = {
   channels: [],
+  selectedLogin: null,
+  users: [],
+  trackerMap: new Map(),
 };
 
 function loadSettings() {
@@ -100,6 +104,97 @@ function roleLabel(roles = {}) {
 function renderEmptyState() {
   elements.cards.innerHTML =
     '<div class="card"><p>No channels added yet. Use the form above to add a Twitch link.</p></div>';
+  elements.detail.innerHTML =
+    '<div class="detail__empty">Select a channel to see detailed stats.</div>';
+}
+
+function renderDetail(user, trackerSummary) {
+  if (!user) {
+    elements.detail.innerHTML =
+      '<div class="detail__empty">Select a channel to see detailed stats.</div>';
+    return;
+  }
+
+  const stream = user.stream;
+  const isLive = Boolean(stream);
+  const statusLabel = isLive ? "Live" : "Offline";
+  const badgeClass = isLive ? "badge badge--live" : "badge";
+  const lastBroadcast = user.lastBroadcast?.startedAt;
+  const lastOnline = isLive
+    ? `Live since ${formatDate(stream.startedAt)}`
+    : lastBroadcast
+      ? `Last live ${formatDate(lastBroadcast)}`
+      : "No recent streams";
+  const gameName =
+    stream?.game?.displayName || stream?.game?.name || stream?.game_name || "Offline";
+  const viewerCount = stream?.viewerCount ?? stream?.viewer_count ?? null;
+
+  elements.detail.innerHTML = `
+    <div class="detail__header">
+      <div class="detail__title">
+        <img class="detail__avatar" src="${user.logo}" alt="${user.displayName}" />
+        <div>
+          <strong>${user.displayName}</strong>
+          <div class="detail__sub">@${user.login}</div>
+        </div>
+      </div>
+      <span class="${badgeClass}">${statusLabel}</span>
+    </div>
+    <p>${user.bio || "No channel description provided."}</p>
+    <div class="detail__grid">
+      <div><span>Status</span><strong>${lastOnline}</strong></div>
+      <div><span>Followers</span><strong>${formatNumber(user.followers)}</strong></div>
+      <div><span>Chatters</span><strong>${formatNumber(user.chatterCount)}</strong></div>
+      <div><span>Account created</span><strong>${formatDate(user.createdAt)}</strong></div>
+      <div><span>Broadcaster type</span><strong>${roleLabel(user.roles)}</strong></div>
+      <div><span>Current game</span><strong>${gameName}</strong></div>
+      <div><span>Viewers</span><strong>${formatNumber(viewerCount)}</strong></div>
+      <div><span>30d avg viewers</span><strong>${formatNumber(trackerSummary?.avg_viewers)}</strong></div>
+      <div><span>30d max viewers</span><strong>${formatNumber(trackerSummary?.max_viewers)}</strong></div>
+      <div><span>30d hours watched</span><strong>${formatNumber(trackerSummary?.hours_watched)}</strong></div>
+      <div><span>30d hours streamed</span><strong>${formatHours(trackerSummary?.minutes_streamed)}</strong></div>
+      <div><span>30d new followers</span><strong>${formatNumber(trackerSummary?.followers)}</strong></div>
+    </div>
+    <div class="card__footer">
+      <span>Updated ${new Intl.DateTimeFormat("en", {
+        timeStyle: "short",
+        dateStyle: "medium",
+      }).format(new Date())}</span>
+      <a href="https://twitch.tv/${user.login}" target="_blank" rel="noreferrer">Open</a>
+    </div>
+  `;
+}
+
+function renderList(users, trackerMap) {
+  elements.cards.innerHTML = users
+    .map((user) => {
+      const stream = user.stream;
+      const isLive = Boolean(stream);
+      const statusLabel = isLive ? "Live" : "Offline";
+      const badgeClass = isLive ? "badge badge--live" : "badge";
+      const viewerCount = stream?.viewerCount ?? stream?.viewer_count ?? null;
+      const isActive = state.selectedLogin === user.login ? "card--active" : "";
+      const trackerSummary = trackerMap.get(user.login);
+
+      return `
+        <article class="card card--compact ${isActive}" data-login="${user.login}">
+          <div class="card__header">
+            <img class="card__avatar" src="${user.logo}" alt="${user.displayName}" />
+            <div class="card__title">
+              <strong>${user.displayName}</strong>
+              <span>@${user.login}</span>
+            </div>
+            <span class="${badgeClass}">${statusLabel}</span>
+          </div>
+          <div class="stats">
+            <div><span>Followers</span><strong>${formatNumber(user.followers)}</strong></div>
+            <div><span>Viewers</span><strong>${formatNumber(viewerCount)}</strong></div>
+            <div><span>30d avg viewers</span><strong>${formatNumber(trackerSummary?.avg_viewers)}</strong></div>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
 }
 
 async function fetchUser(login) {
@@ -159,62 +254,16 @@ async function refreshChannels() {
     );
 
     const trackerMap = new Map(trackerResults);
+    state.trackerMap = trackerMap;
 
-    elements.cards.innerHTML = users
-      .map((user) => {
-        const stream = user.stream;
-        const isLive = Boolean(stream);
-        const statusLabel = isLive ? "Live" : "Offline";
-        const badgeClass = isLive ? "badge badge--live" : "badge";
-        const lastBroadcast = user.lastBroadcast?.startedAt;
-        const trackerSummary = trackerMap.get(user.login);
+    state.users = users;
+    if (!state.selectedLogin || !users.find((user) => user.login === state.selectedLogin)) {
+      state.selectedLogin = users[0]?.login ?? null;
+    }
 
-        const lastOnline = isLive
-          ? `Live since ${formatDate(stream.startedAt)}`
-          : lastBroadcast
-            ? `Last live ${formatDate(lastBroadcast)}`
-            : "No recent streams";
-
-        const gameName =
-          stream?.game?.displayName || stream?.game?.name || stream?.game_name || "Offline";
-        const viewerCount = stream?.viewerCount ?? stream?.viewer_count ?? null;
-
-        return `
-          <article class="card">
-            <div class="card__header">
-              <img class="card__avatar" src="${user.logo}" alt="${user.displayName}" />
-              <div class="card__title">
-                <strong>${user.displayName}</strong>
-                <span>@${user.login}</span>
-              </div>
-              <span class="${badgeClass}">${statusLabel}</span>
-            </div>
-            <p>${user.bio || "No channel description provided."}</p>
-            <div class="stats">
-              <div><span>Status</span><strong>${lastOnline}</strong></div>
-              <div><span>Followers</span><strong>${formatNumber(user.followers)}</strong></div>
-              <div><span>30d avg viewers</span><strong>${formatNumber(trackerSummary?.avg_viewers)}</strong></div>
-              <div><span>30d max viewers</span><strong>${formatNumber(trackerSummary?.max_viewers)}</strong></div>
-              <div><span>30d hours watched</span><strong>${formatNumber(trackerSummary?.hours_watched)}</strong></div>
-              <div><span>30d hours streamed</span><strong>${formatHours(trackerSummary?.minutes_streamed)}</strong></div>
-              <div><span>30d new followers</span><strong>${formatNumber(trackerSummary?.followers)}</strong></div>
-              <div><span>Chatters</span><strong>${formatNumber(user.chatterCount)}</strong></div>
-              <div><span>Account created</span><strong>${formatDate(user.createdAt)}</strong></div>
-              <div><span>Broadcaster type</span><strong>${roleLabel(user.roles)}</strong></div>
-              <div><span>Current game</span><strong>${gameName}</strong></div>
-              <div><span>Viewers</span><strong>${formatNumber(viewerCount)}</strong></div>
-            </div>
-            <div class="card__footer">
-              <span>Updated ${new Intl.DateTimeFormat("en", {
-                timeStyle: "short",
-                dateStyle: "medium",
-              }).format(new Date())}</span>
-              <a href="https://twitch.tv/${user.login}" target="_blank" rel="noreferrer">Open</a>
-            </div>
-          </article>
-        `;
-      })
-      .join("");
+    renderList(users, trackerMap);
+    const selectedUser = users.find((user) => user.login === state.selectedLogin);
+    renderDetail(selectedUser, trackerMap.get(state.selectedLogin));
 
     const missing = state.channels.filter(
       (channel) => !users.find((user) => user.login === channel)
@@ -261,6 +310,17 @@ elements.clearChannels.addEventListener("click", () => {
 
 elements.refresh.addEventListener("click", () => {
   refreshChannels();
+});
+
+elements.cards.addEventListener("click", (event) => {
+  const card = event.target.closest("[data-login]");
+  if (!card) {
+    return;
+  }
+  state.selectedLogin = card.dataset.login;
+  const selectedUser = state.users.find((user) => user.login === state.selectedLogin);
+  renderList(state.users, state.trackerMap);
+  renderDetail(selectedUser, state.trackerMap.get(state.selectedLogin));
 });
 
 loadSettings();
