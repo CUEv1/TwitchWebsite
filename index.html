@@ -3,42 +3,39 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Twitch Channel Status Board</title>
+    <title>Twitch Analytics Overview</title>
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <header class="hero">
-      <div class="hero__content">
-        <p class="eyebrow">Twitch Analytics Overview</p>
-        <h1>Monitor Twitch channels like a streaming analytics dashboard.</h1>
-        <p class="subhead">
-          Paste channel links to see who is live, review 30-day stats, and drill into detailed
-          metrics with a single click.
-        </p>
+    <header class="topbar">
+      <div class="topbar__brand">
+        <span class="logo">TS</span>
+        <div>
+          <p class="brand__label">Twitch Stats</p>
+          <p class="brand__title">Streams Overview</p>
+        </div>
       </div>
-      <div class="hero__meta">
-        <span class="chip">Live + 30d Summary</span>
-        <span class="chip chip--accent">Powered by api.ivr.fi + TwitchTracker</span>
+      <div class="topbar__actions">
+        <button class="button button--ghost" id="refresh">Refresh</button>
+        <button class="button button--ghost" id="clear-channels">Clear list</button>
       </div>
     </header>
 
     <main>
-      <section class="panel">
-        <div class="panel__header">
-          <div>
-            <h2>Tracked channels</h2>
-            <p>Add Twitch links or usernames to start tracking live stats.</p>
-          </div>
-          <div class="panel__actions">
-            <button class="button button--ghost" id="refresh">Refresh</button>
-            <button class="button button--ghost" id="clear-channels">Clear list</button>
-          </div>
+      <section class="hero">
+        <div>
+          <p class="eyebrow">Streaming analytics</p>
+          <h1>Track Twitch channels with an analytics-first overview.</h1>
+          <p class="subhead">
+            Paste Twitch links or usernames to monitor live status, 30-day performance, and dive
+            into detailed metrics.
+          </p>
         </div>
-        <form id="channel-form" class="form-inline">
+        <form id="channel-form" class="hero__form">
           <input
             type="text"
             id="channel-input"
-            placeholder="Add a Twitch link or username"
+            placeholder="Add Twitch link or username"
             autocomplete="off"
           />
           <button class="button" type="submit">Add channel</button>
@@ -47,6 +44,9 @@
           Examples: <code>https://twitch.tv/shroud</code>, <code>twitch.tv/summit1g</code>,
           <code>pokimane</code>
         </p>
+      </section>
+
+      <section class="panel">
         <div id="status" class="status"></div>
         <div class="summary">
           <div class="summary__card">
@@ -66,7 +66,8 @@
             <strong id="summary-avg">-</strong>
           </div>
         </div>
-        <div class="dashboard">
+
+        <div class="layout">
           <div class="table">
             <div class="table__head">
               <span>Channel</span>
@@ -77,15 +78,15 @@
             </div>
             <div id="channels-list" class="table__body"></div>
           </div>
-          <div id="channel-detail" class="detail"></div>
+          <aside id="channel-detail" class="detail"></aside>
         </div>
       </section>
     </main>
 
     <footer class="footer">
       <p>
-        Tip: Live data uses <code>api.ivr.fi</code> and 30-day stats use
-        <code>twitchtracker.com/api</code>. If either service is unavailable, stats may be delayed.
+        Data sources: <code>api.ivr.fi</code> for live data and <code>twitchtracker.com/api</code>
+        for 30-day summaries.
       </p>
     </footer>
 

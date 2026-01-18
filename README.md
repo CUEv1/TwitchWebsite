@@ -1,7 +1,7 @@
 # TwitchWebsite
 
-A lightweight Twitch live dashboard that tracks the channels you care about. Add Twitch URLs or
-usernames and get live status, last online time, and channel stats.
+A lightweight Twitch analytics overview that tracks the channels you care about. Add Twitch URLs or
+usernames and get live status, last online time, and 30-day channel stats.
 
 ## How it works
 
