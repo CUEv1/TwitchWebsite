@@ -67,13 +67,6 @@ main {
   gap: 12px;
 }
 
-.form-grid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  align-items: end;
-}
-
 .form-inline {
   display: flex;
   flex-wrap: wrap;
@@ -128,6 +121,12 @@ input:focus {
   min-height: 24px;
   color: #f3c969;
   margin-bottom: 12px;
+}
+
+.hint {
+  margin: 0 0 16px;
+  color: #9fa3bd;
+  font-size: 0.9rem;
 }
 
 .cards {

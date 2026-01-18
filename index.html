@@ -10,9 +10,10 @@
     <header class="hero">
       <div>
         <p class="eyebrow">Twitch Live Dashboard</p>
-        <h1>Track your favorite Twitch channels in one place.</h1>
+        <h1>Paste Twitch links to track live status instantly.</h1>
         <p class="subhead">
-          Add channels, see who is live, view last online times, and keep quick stats ready.
+          Add channel URLs or usernames to see who is live, the last broadcast time, and updated
+          stats without configuring API keys.
         </p>
       </div>
     </header>
@@ -21,32 +22,8 @@
       <section class="panel">
         <div class="panel__header">
           <div>
-            <h2>API credentials</h2>
-            <p>
-              Provide a Twitch app Client ID and an App Access Token to power live stats. You can
-              generate them in the Twitch developer console.
-            </p>
-          </div>
-          <button class="button button--ghost" id="clear-credentials">Clear</button>
-        </div>
-        <form id="credentials-form" class="form-grid">
-          <label>
-            <span>Client ID</span>
-            <input type="text" id="client-id" placeholder="e.g. abc123" autocomplete="off" />
-          </label>
-          <label>
-            <span>App Access Token</span>
-            <input type="password" id="access-token" placeholder="e.g. 9nabc..." autocomplete="off" />
-          </label>
-          <button class="button" type="submit">Save credentials</button>
-        </form>
-      </section>
-
-      <section class="panel">
-        <div class="panel__header">
-          <div>
             <h2>Tracked channels</h2>
-            <p>Add Twitch usernames to start tracking live stats.</p>
+            <p>Add Twitch links or usernames to start tracking live stats.</p>
           </div>
           <div class="panel__actions">
             <button class="button button--ghost" id="refresh">Refresh</button>
@@ -57,11 +34,15 @@
           <input
             type="text"
             id="channel-input"
-            placeholder="Add a channel (e.g. shroud)"
+            placeholder="Add a Twitch link or username"
             autocomplete="off"
           />
           <button class="button" type="submit">Add channel</button>
         </form>
+        <p class="hint">
+          Examples: <code>https://twitch.tv/shroud</code>, <code>twitch.tv/summit1g</code>,
+          <code>pokimane</code>
+        </p>
         <div id="status" class="status"></div>
         <div id="channels" class="cards"></div>
       </section>
@@ -69,8 +50,8 @@
 
     <footer class="footer">
       <p>
-        Tip: This dashboard uses the Twitch Helix API. Generate an app access token in your Twitch
-        developer console to unlock live stats.
+        Tip: Live data is powered by the community Twitch API at <code>api.ivr.fi</code>. If that
+        service is unavailable, stats may be delayed.
       </p>
     </footer>
 

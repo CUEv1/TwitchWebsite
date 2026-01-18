@@ -1,10 +1,6 @@
 const STORAGE_KEY = "twitch-dashboard-settings";
 
 const elements = {
-  credentialsForm: document.getElementById("credentials-form"),
-  clientId: document.getElementById("client-id"),
-  accessToken: document.getElementById("access-token"),
-  clearCredentials: document.getElementById("clear-credentials"),
   channelForm: document.getElementById("channel-form"),
   channelInput: document.getElementById("channel-input"),
   clearChannels: document.getElementById("clear-channels"),
@@ -14,8 +10,6 @@ const elements = {
 };
 
 const state = {
-  clientId: "",
-  accessToken: "",
   channels: [],
 };
 
@@ -27,8 +21,6 @@ function loadSettings() {
 
   try {
     const parsed = JSON.parse(stored);
-    state.clientId = parsed.clientId || "";
-    state.accessToken = parsed.accessToken || "";
     state.channels = Array.isArray(parsed.channels) ? parsed.channels : [];
   } catch (error) {
     console.warn("Failed to parse settings", error);
@@ -39,8 +31,6 @@ function saveSettings() {
   localStorage.setItem(
     STORAGE_KEY,
     JSON.stringify({
-      clientId: state.clientId,
-      accessToken: state.accessToken,
       channels: state.channels,
     })
   );
@@ -62,112 +52,122 @@ function formatDate(isoString) {
   }).format(date);
 }
 
-function normalizeChannel(value) {
-  return value.trim().replace(/^@/, "").toLowerCase();
-}
-
-function render() {
-  elements.clientId.value = state.clientId;
-  elements.accessToken.value = state.accessToken;
-
-  if (state.channels.length === 0) {
-    elements.cards.innerHTML =
-      '<div class="card"><p>No channels added yet. Use the form above to add a Twitch username.</p></div>';
-    return;
+function formatNumber(value) {
+  if (value === null || value === undefined) {
+    return "-";
   }
+  return Number(value).toLocaleString();
 }
 
-async function fetchHelix(path) {
-  const response = await fetch(`https://api.twitch.tv/helix/${path}`, {
-    headers: {
-      "Client-ID": state.clientId,
-      Authorization: `Bearer ${state.accessToken}`,
-    },
-  });
+function parseChannelInput(value) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
 
+  if (trimmed.includes("twitch.tv")) {
+    const normalizedUrl = trimmed.startsWith("http") ? trimmed : `https://${trimmed}`;
+    try {
+      const url = new URL(normalizedUrl);
+      const segments = url.pathname.split("/").filter(Boolean);
+      return segments[0]?.toLowerCase() || "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  return trimmed.replace(/^@/, "").toLowerCase();
+}
+
+function roleLabel(roles = {}) {
+  if (roles.isPartner) {
+    return "Partner";
+  }
+  if (roles.isAffiliate) {
+    return "Affiliate";
+  }
+  return "Standard";
+}
+
+function renderEmptyState() {
+  elements.cards.innerHTML =
+    '<div class="card"><p>No channels added yet. Use the form above to add a Twitch link.</p></div>';
+}
+
+async function fetchUser(login) {
+  const response = await fetch(`https://api.ivr.fi/v2/twitch/user?login=${login}`);
   if (!response.ok) {
-    const payload = await response.json().catch(() => ({}));
-    const message = payload.message || response.statusText;
-    throw new Error(`Twitch API error (${response.status}): ${message}`);
+    throw new Error(`Channel lookup failed (${response.status}).`);
   }
-
-  return response.json();
+  const payload = await response.json();
+  return payload[0] || null;
 }
 
 async function refreshChannels() {
-  if (!state.clientId || !state.accessToken) {
-    setStatus("Add your Twitch API credentials to fetch channel stats.", "error");
-    return;
-  }
-
   if (state.channels.length === 0) {
     setStatus("Add at least one channel to start tracking.");
-    elements.cards.innerHTML =
-      '<div class="card"><p>No channels added yet. Use the form above to add a Twitch username.</p></div>';
+    renderEmptyState();
     return;
   }
 
   setStatus("Refreshing channel stats...");
 
   try {
-    const logins = state.channels.join("&login=");
-    const usersData = await fetchHelix(`users?login=${logins}`);
-    const users = usersData.data || [];
-
-    const streamLogins = state.channels.join("&user_login=");
-    const streamsData = await fetchHelix(`streams?user_login=${streamLogins}`);
-    const streams = streamsData.data || [];
-
-    const streamMap = new Map(streams.map((stream) => [stream.user_id, stream]));
-
-    const videoResults = await Promise.all(
-      users.map(async (user) => {
+    const userResults = await Promise.all(
+      state.channels.map(async (channel) => {
         try {
-          const videosData = await fetchHelix(
-            `videos?user_id=${user.id}&type=archive&first=1&sort=time`
-          );
-          return [user.id, videosData.data?.[0] || null];
+          return await fetchUser(channel);
         } catch (error) {
-          return [user.id, null];
+          return null;
         }
       })
     );
 
-    const videoMap = new Map(videoResults);
+    const users = userResults.filter(Boolean);
+
+    if (users.length === 0) {
+      setStatus("No channels found. Double-check the links you added.", "error");
+      renderEmptyState();
+      return;
+    }
 
     elements.cards.innerHTML = users
       .map((user) => {
-        const stream = streamMap.get(user.id);
-        const lastVideo = videoMap.get(user.id);
+        const stream = user.stream;
         const isLive = Boolean(stream);
         const statusLabel = isLive ? "Live" : "Offline";
         const badgeClass = isLive ? "badge badge--live" : "badge";
+        const lastBroadcast = user.lastBroadcast?.startedAt;
 
         const lastOnline = isLive
-          ? `Live since ${formatDate(stream.started_at)}`
-          : lastVideo
-            ? `Last live ${formatDate(lastVideo.created_at)}`
+          ? `Live since ${formatDate(stream.startedAt)}`
+          : lastBroadcast
+            ? `Last live ${formatDate(lastBroadcast)}`
             : "No recent streams";
+
+        const gameName =
+          stream?.game?.displayName || stream?.game?.name || stream?.game_name || "Offline";
+        const viewerCount = stream?.viewerCount ?? stream?.viewer_count ?? null;
 
         return `
           <article class="card">
             <div class="card__header">
-              <img class="card__avatar" src="${user.profile_image_url}" alt="${user.display_name}" />
+              <img class="card__avatar" src="${user.logo}" alt="${user.displayName}" />
               <div class="card__title">
-                <strong>${user.display_name}</strong>
+                <strong>${user.displayName}</strong>
                 <span>@${user.login}</span>
               </div>
               <span class="${badgeClass}">${statusLabel}</span>
             </div>
-            <p>${user.description || "No channel description provided."}</p>
+            <p>${user.bio || "No channel description provided."}</p>
             <div class="stats">
               <div><span>Status</span><strong>${lastOnline}</strong></div>
-              <div><span>Total views</span><strong>${user.view_count.toLocaleString()}</strong></div>
-              <div><span>Account created</span><strong>${formatDate(user.created_at)}</strong></div>
-              <div><span>Broadcaster type</span><strong>${user.broadcaster_type || "Standard"}</strong></div>
-              <div><span>Language</span><strong>${stream ? stream.language?.toUpperCase() : "N/A"}</strong></div>
-              <div><span>Current game</span><strong>${stream ? stream.game_name : "Offline"}</strong></div>
-              <div><span>Viewers</span><strong>${stream ? stream.viewer_count.toLocaleString() : "-"}</strong></div>
+              <div><span>Followers</span><strong>${formatNumber(user.followers)}</strong></div>
+              <div><span>Chatters</span><strong>${formatNumber(user.chatterCount)}</strong></div>
+              <div><span>Account created</span><strong>${formatDate(user.createdAt)}</strong></div>
+              <div><span>Broadcaster type</span><strong>${roleLabel(user.roles)}</strong></div>
+              <div><span>Current game</span><strong>${gameName}</strong></div>
+              <div><span>Viewers</span><strong>${formatNumber(viewerCount)}</strong></div>
             </div>
             <div class="card__footer">
               <span>Updated ${new Intl.DateTimeFormat("en", {
@@ -184,6 +184,7 @@ async function refreshChannels() {
     const missing = state.channels.filter(
       (channel) => !users.find((user) => user.login === channel)
     );
+
     if (missing.length > 0) {
       setStatus(`Could not find: ${missing.join(", ")}`, "error");
     } else {
@@ -195,7 +196,7 @@ async function refreshChannels() {
 }
 
 function addChannel(value) {
-  const normalized = normalizeChannel(value);
+  const normalized = parseChannelInput(value);
   if (!normalized) {
     return;
   }
@@ -210,25 +211,9 @@ function addChannel(value) {
 function removeAllChannels() {
   state.channels = [];
   saveSettings();
-  render();
+  renderEmptyState();
   setStatus("Channel list cleared.");
 }
-
-function clearCredentials() {
-  state.clientId = "";
-  state.accessToken = "";
-  saveSettings();
-  render();
-  setStatus("Credentials cleared.");
-}
-
-elements.credentialsForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  state.clientId = elements.clientId.value.trim();
-  state.accessToken = elements.accessToken.value.trim();
-  saveSettings();
-  setStatus("Credentials saved. Click refresh to fetch stats.");
-});
 
 elements.channelForm.addEventListener("submit", (event) => {
   event.preventDefault();
@@ -239,14 +224,10 @@ elements.clearChannels.addEventListener("click", () => {
   removeAllChannels();
 });
 
-elements.clearCredentials.addEventListener("click", () => {
-  clearCredentials();
-});
-
 elements.refresh.addEventListener("click", () => {
   refreshChannels();
 });
 
 loadSettings();
-render();
+renderEmptyState();
 refreshChannels();
