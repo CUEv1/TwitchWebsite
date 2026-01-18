@@ -8,6 +8,10 @@ const elements = {
   status: document.getElementById("status"),
   cards: document.getElementById("channels-list"),
   detail: document.getElementById("channel-detail"),
+  summaryTotal: document.getElementById("summary-total"),
+  summaryLive: document.getElementById("summary-live"),
+  summaryViewers: document.getElementById("summary-viewers"),
+  summaryAvg: document.getElementById("summary-avg"),
 };
 
 const state = {
@@ -103,9 +107,13 @@ function roleLabel(roles = {}) {
 
 function renderEmptyState() {
   elements.cards.innerHTML =
-    '<div class="card"><p>No channels added yet. Use the form above to add a Twitch link.</p></div>';
+    '<div class="table__row"><span>No channels added yet.</span><span>-</span><span>-</span><span>-</span><span>-</span></div>';
   elements.detail.innerHTML =
     '<div class="detail__empty">Select a channel to see detailed stats.</div>';
+  elements.summaryTotal.textContent = "0";
+  elements.summaryLive.textContent = "0";
+  elements.summaryViewers.textContent = "-";
+  elements.summaryAvg.textContent = "-";
 }
 
 function renderDetail(user, trackerSummary) {
@@ -173,28 +181,47 @@ function renderList(users, trackerMap) {
       const statusLabel = isLive ? "Live" : "Offline";
       const badgeClass = isLive ? "badge badge--live" : "badge";
       const viewerCount = stream?.viewerCount ?? stream?.viewer_count ?? null;
-      const isActive = state.selectedLogin === user.login ? "card--active" : "";
+      const isActive = state.selectedLogin === user.login ? "table__row--active" : "";
       const trackerSummary = trackerMap.get(user.login);
 
       return `
-        <article class="card card--compact ${isActive}" data-login="${user.login}">
-          <div class="card__header">
-            <img class="card__avatar" src="${user.logo}" alt="${user.displayName}" />
-            <div class="card__title">
+        <div class="table__row ${isActive}" data-login="${user.login}">
+          <div class="table__channel">
+            <img class="table__avatar" src="${user.logo}" alt="${user.displayName}" />
+            <div>
               <strong>${user.displayName}</strong>
-              <span>@${user.login}</span>
+              <div class="table__sub">@${user.login}</div>
             </div>
-            <span class="${badgeClass}">${statusLabel}</span>
           </div>
-          <div class="stats">
-            <div><span>Followers</span><strong>${formatNumber(user.followers)}</strong></div>
-            <div><span>Viewers</span><strong>${formatNumber(viewerCount)}</strong></div>
-            <div><span>30d avg viewers</span><strong>${formatNumber(trackerSummary?.avg_viewers)}</strong></div>
-          </div>
-        </article>
+          <span class="${badgeClass}">${statusLabel}</span>
+          <strong>${formatNumber(viewerCount)}</strong>
+          <strong>${formatNumber(user.followers)}</strong>
+          <strong>${formatNumber(trackerSummary?.avg_viewers)}</strong>
+        </div>
       `;
     })
     .join("");
+}
+
+function updateSummary(users, trackerMap) {
+  const total = users.length;
+  const liveCount = users.filter((user) => user.stream).length;
+  const combinedViewers = users.reduce((sum, user) => {
+    const viewers = user.stream?.viewerCount ?? user.stream?.viewer_count ?? 0;
+    return sum + viewers;
+  }, 0);
+  const avgViewersValues = users
+    .map((user) => trackerMap.get(user.login)?.avg_viewers)
+    .filter((value) => typeof value === "number");
+  const avgViewers =
+    avgViewersValues.length > 0
+      ? avgViewersValues.reduce((sum, value) => sum + value, 0) / avgViewersValues.length
+      : null;
+
+  elements.summaryTotal.textContent = formatNumber(total);
+  elements.summaryLive.textContent = formatNumber(liveCount);
+  elements.summaryViewers.textContent = formatNumber(combinedViewers);
+  elements.summaryAvg.textContent = avgViewers ? formatNumber(Math.round(avgViewers)) : "-";
 }
 
 async function fetchUser(login) {
@@ -261,6 +288,7 @@ async function refreshChannels() {
       state.selectedLogin = users[0]?.login ?? null;
     }
 
+    updateSummary(users, trackerMap);
     renderList(users, trackerMap);
     const selectedUser = users.find((user) => user.login === state.selectedLogin);
     renderDetail(selectedUser, trackerMap.get(state.selectedLogin));

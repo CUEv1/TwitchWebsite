@@ -8,13 +8,17 @@
   </head>
   <body>
     <header class="hero">
-      <div>
-        <p class="eyebrow">Twitch Live Dashboard</p>
-        <h1>Paste Twitch links to track live status instantly.</h1>
+      <div class="hero__content">
+        <p class="eyebrow">Twitch Analytics Overview</p>
+        <h1>Monitor Twitch channels like a streaming analytics dashboard.</h1>
         <p class="subhead">
-          Add channel URLs or usernames to see who is live, the last broadcast time, and updated
-          stats without configuring API keys.
+          Paste channel links to see who is live, review 30-day stats, and drill into detailed
+          metrics with a single click.
         </p>
+      </div>
+      <div class="hero__meta">
+        <span class="chip">Live + 30d Summary</span>
+        <span class="chip chip--accent">Powered by api.ivr.fi + TwitchTracker</span>
       </div>
     </header>
 
@@ -44,8 +48,35 @@
           <code>pokimane</code>
         </p>
         <div id="status" class="status"></div>
+        <div class="summary">
+          <div class="summary__card">
+            <p>Total channels</p>
+            <strong id="summary-total">0</strong>
+          </div>
+          <div class="summary__card">
+            <p>Live now</p>
+            <strong id="summary-live">0</strong>
+          </div>
+          <div class="summary__card">
+            <p>Combined viewers</p>
+            <strong id="summary-viewers">-</strong>
+          </div>
+          <div class="summary__card">
+            <p>Avg 30d viewers</p>
+            <strong id="summary-avg">-</strong>
+          </div>
+        </div>
         <div class="dashboard">
-          <div id="channels-list" class="cards"></div>
+          <div class="table">
+            <div class="table__head">
+              <span>Channel</span>
+              <span>Status</span>
+              <span>Viewers</span>
+              <span>Followers</span>
+              <span>30d avg viewers</span>
+            </div>
+            <div id="channels-list" class="table__body"></div>
+          </div>
           <div id="channel-detail" class="detail"></div>
         </div>
       </section>
