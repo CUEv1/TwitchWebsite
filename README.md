@@ -102,7 +102,11 @@ npm run dev
 
 If you still see the fallback message while running the dev server, open the
 browser console and confirm the `main.tsx` bundle is loading without errors.
-The fallback should be removed as soon as React mounts.
+The fallback should be removed as soon as React mounts. Common checks:
+
+- Confirm you are visiting `http://localhost:5173/` (not a `file://` URL).
+- In the Network tab, ensure `/src/main.tsx` returns `200` and is not blocked.
+- Check the Console for module load errors or CORS warnings.
 
 ## 6. Next steps
 
