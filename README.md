@@ -95,6 +95,11 @@ npm install
 npm run dev
 ```
 
+> ⚠️ Note: opening `index.html` directly in the browser will show a blank page
+> because the TypeScript/JSX bundle is served by Vite. Use `npm run dev` for
+> local development or `npm run build` + `npm run preview` for a production
+> smoke test.
+
 ## 6. Next steps
 
 - Add authentication and secure token exchange for Twitch API.
