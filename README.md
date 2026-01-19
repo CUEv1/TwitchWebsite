@@ -100,6 +100,10 @@ npm run dev
 > local development or `npm run build` + `npm run preview` for a production
 > smoke test.
 
+If you still see the fallback message while running the dev server, open the
+browser console and confirm the `main.tsx` bundle is loading without errors.
+The fallback should be removed as soon as React mounts.
+
 ## 6. Next steps
 
 - Add authentication and secure token exchange for Twitch API.
